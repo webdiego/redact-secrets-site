@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>redact-secrets</title>
-<meta name="description" content="A Claude Code mod that masks emails, phones, API keys, cards, IBANs and national IDs in your prompts before they leave your machine.">
+<meta name="description" content="A Claude Code mod that masks emails, phones, API keys, passwords, cards, IBANs and national IDs in your prompts before they leave your machine.">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,7 +82,7 @@
   .ex:hover { color: var(--fg); border-color: #3a3a3a; }
 
   /* features grid */
-  .grid { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .grid { margin-top: 48px; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
   @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
   .cell { padding: 28px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; background: var(--card); transition: background .2s; }
@@ -145,9 +145,9 @@
 </nav>
 
 <header class="hero wrap">
-  <span class="pill"><b>v0.3.0</b> A mod for Claude Code</span>
+  <span class="pill"><b>v0.4.0</b> A mod for Claude Code</span>
   <h1><span class="grad">Your secrets never<br>leave the prompt.</span></h1>
-  <p class="lead">redact-secrets masks emails, phone numbers, API keys, cards, IBANs and national IDs in your prompts before they are sent. Locally, with no network and no setup.</p>
+  <p class="lead">redact-secrets masks emails, phone numbers, API keys, passwords, cards, IBANs and national IDs in your prompts before they are sent. Locally, with no network and no setup.</p>
   <div class="cta">
     <a class="btn btn-primary" href="#install">Install the mod</a>
     <a class="btn btn-ghost" href="#playground">Try it live →</a>
@@ -180,7 +180,10 @@
       <button class="ex" type="button">ssn 123-45-6789</button>
       <button class="ex" type="button">josé@müller.de</button>
       <button class="ex" type="button">token ghp_a1B2c3D4e5F6g7H8i9J0kLmN</button>
+      <button class="ex" type="button">PASSWORD=hunter2isgood</button>
+      <button class="ex" type="button">postgres://admin:S3cretPass@db:5432/app</button>
       <button class="ex" type="button">3 cats, born 2024</button>
+      <button class="ex" type="button">at 2026-10-23 12:30 from 192.168.1.20</button>
     </div>
   </div>
 </section>
@@ -188,15 +191,17 @@
 <section id="detects">
   <div class="wrap">
     <span class="eyebrow">What it masks</span>
-    <h2>Six kinds of data. One placeholder.</h2>
+    <h2>Seven kinds of data. One placeholder.</h2>
     <p class="sub">Every match becomes <code>⟦kind:abc•••⟧</code>: the model still knows what was there, you still know which value it was.</p>
     <div class="grid">
-      <div class="cell"><span class="k">01 · key</span><h3>API keys &amp; tokens</h3><p>OpenAI, Anthropic, GitHub, AWS, Google, Slack, JWTs and any long mixed token.</p><div class="sample">sk-ant-… → ⟦key:sk-•••⟧</div></div>
-      <div class="cell"><span class="k">02 · email</span><h3>Email addresses</h3><p>Any address, Unicode letters included.</p><div class="sample">josé@müller.de → ⟦email:jos•••⟧</div></div>
-      <div class="cell"><span class="k">03 · phone</span><h3>Phone numbers</h3><p>International formats and native numerals: Arabic, Persian, Devanagari.</p><div class="sample">+39 333 123 4567 → ⟦phone:+39•••⟧</div></div>
-      <div class="cell"><span class="k">04 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
-      <div class="cell"><span class="k">05 · iban</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦iban:DE8•••⟧</div></div>
-      <div class="cell"><span class="k">06 · id</span><h3>National IDs</h3><p>Nine countries, switchable from <code>/config</code>.</p><div class="sample">RSSMRA85T10A562S → ⟦id:RSS•••⟧</div></div>
+      <div class="cell"><span class="k">01 · key</span><h3>API keys &amp; tokens</h3><p>OpenAI, Anthropic, Stripe, GitHub, AWS, Google, Slack, JWTs, Bearer tokens, private key blocks and any long mixed token.</p><div class="sample">sk-ant-… → ⟦key:sk-•••⟧</div></div>
+      <div class="cell"><span class="k">02 · secret</span><h3>Passwords &amp; secrets</h3><p>Values of <code>PASSWORD=</code>, <code>api_key:</code>, <code>*_TOKEN</code> and the password in <code>user:pass@host</code> URLs. Env lookups stay.</p><div class="sample">PASSWORD=hunter2 → PASSWORD=⟦secret:hun•••⟧</div></div>
+      <div class="cell"><span class="k">03 · email</span><h3>Email addresses</h3><p>Any address, Unicode letters included.</p><div class="sample">josé@müller.de → ⟦email:jos•••⟧</div></div>
+      <div class="cell"><span class="k">04 · phone</span><h3>Phone numbers</h3><p>International formats and native numerals: Arabic, Persian, Devanagari.</p><div class="sample">+39 333 123 4567 → ⟦phone:+39•••⟧</div></div>
+      <div class="cell"><span class="k">05 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
+      <div class="cell"><span class="k">06 · iban</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦iban:DE8•••⟧</div></div>
+      <div class="cell"><span class="k">07 · id</span><h3>National IDs</h3><p>Nine countries, switchable from <code>/config</code>.</p><div class="sample">RSSMRA85T10A562S → ⟦id:RSS•••⟧</div></div>
+      <div class="cell"><span class="k">— · left alone</span><h3>Not secrets</h3><p>Dates, times, IP addresses, years, prices and ports. Pasted logs stay readable.</p><div class="sample">192.168.1.20 → 192.168.1.20</div></div>
     </div>
   </div>
 </section>
