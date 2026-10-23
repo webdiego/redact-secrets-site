@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>redact-secrets</title>
+<meta name="description" content="A Claude Code mod that masks emails, phones, API keys, cards, IBANs and national IDs in your prompts before they leave your machine.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000; --fg: #ededed; --muted: #a1a1a1; --dim: #666;
+    --line: #242424; --card: #0a0a0a; --chip-fg: #1a1b26;
+    --purple: #bb9af7; --blue: #7aa2f7;
+    --sans: 'Geist', system-ui, sans-serif; --mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  code, .mono { font-family: var(--mono); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+  /* nav */
+  nav { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px); background: rgba(0,0,0,.6); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.01em; }
+  .brand img { width: 26px; height: 26px; }
+  nav .links { display: flex; gap: 24px; font-size: 14px; color: var(--muted); align-items: center; }
+  nav .links a:hover { color: var(--fg); }
+  @media (max-width: 640px) { nav .links .hide-sm { display: none; } }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 999px; font-weight: 500; font-size: 15px; border: 1px solid var(--line); transition: background .15s, border-color .15s; }
+  .btn-primary { background: var(--fg); color: #000; border-color: var(--fg); }
+  .btn-primary:hover { background: #ccc; }
+  .btn-ghost:hover { background: #111; border-color: #3a3a3a; }
+  .btn-sm { height: 32px; padding: 0 14px; font-size: 13px; }
+
+  /* hero */
+  .hero { position: relative; padding: 112px 16px 80px; text-align: center; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 64px 64px; mask-image: radial-gradient(ellipse 60% 55% at 50% 30%, #000 30%, transparent 75%); opacity: .55; pointer-events: none; }
+  .hero::after { content: ''; position: absolute; left: 50%; top: -200px; width: 900px; height: 500px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(187,154,247,.28), rgba(122,162,247,.12) 60%, transparent); filter: blur(20px); pointer-events: none; }
+  .hero > * { position: relative; z-index: 1; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); background: rgba(10,10,10,.8); }
+  .pill b { background: linear-gradient(135deg, var(--purple), var(--blue)); color: var(--chip-fg); padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+  h1 { font-size: clamp(40px, 8vw, 76px); line-height: 1.02; letter-spacing: -.045em; font-weight: 700; margin: 28px auto 20px; max-width: 900px; }
+  .grad { background: linear-gradient(135deg, #fff 30%, var(--purple) 65%, var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); font-size: clamp(17px, 2.2vw, 20px); max-width: 640px; margin: 0 auto 36px; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* install command */
+  .cmd { display: flex; align-items: center; gap: 12px; max-width: 640px; margin: 40px auto 0; padding: 0 6px 0 18px; height: 52px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font: 14px var(--mono); text-align: left; }
+  .cmd .prompt { color: var(--dim); }
+  .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .cmd code::-webkit-scrollbar { display: none; }
+  .copy { flex-shrink: 0; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: #111; color: var(--muted); font: 13px var(--sans); cursor: pointer; }
+  .copy:hover { color: var(--fg); border-color: #3a3a3a; }
+  .copy:focus-visible, .btn:focus-visible, textarea:focus-visible, .ex:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  /* sections */
+  section { padding: 96px 0; border-top: 1px solid var(--line); }
+  .eyebrow { font: 13px var(--mono); color: var(--purple); text-transform: uppercase; letter-spacing: .08em; }
+  h2 { font-size: clamp(30px, 5vw, 48px); letter-spacing: -.035em; line-height: 1.1; margin: 12px 0 16px; font-weight: 700; }
+  .sub { color: var(--muted); max-width: 600px; font-size: 18px; }
+
+  /* playground */
+  .play { margin-top: 48px; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--card); }
+  @media (max-width: 760px) { .play { grid-template-columns: 1fr; } }
+  .pane { display: flex; flex-direction: column; min-height: 280px; }
+  .pane + .pane { border-left: 1px solid var(--line); }
+  @media (max-width: 760px) { .pane + .pane { border-left: 0; border-top: 1px solid var(--line); } }
+  .pane-h { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--line); font: 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+  .count { color: var(--purple); text-transform: none; letter-spacing: 0; }
+  textarea { flex: 1; resize: none; border: 0; background: transparent; color: var(--fg); font: 14px/1.8 var(--mono); padding: 18px; }
+  .out { flex: 1; padding: 18px; font: 14px/1.8 var(--mono); white-space: pre-wrap; word-break: break-word; color: #c0caf5; }
+  .chip { background: var(--purple); color: var(--chip-fg); font-weight: 600; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .ex { font: 13px var(--mono); color: var(--muted); border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .ex:hover { color: var(--fg); border-color: #3a3a3a; }
+
+  /* features grid */
+  .grid { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .cell { padding: 28px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; background: var(--card); transition: background .2s; }
+  .cell:hover { background: #111; }
+  .cell .k { font: 12px var(--mono); color: var(--dim); }
+  .cell h3 { font-size: 17px; margin: 14px 0 6px; letter-spacing: -.01em; font-weight: 600; }
+  .cell p { color: var(--muted); font-size: 14px; }
+  .cell .sample { margin-top: 16px; font: 13px var(--mono); color: var(--dim); }
+
+  /* how it works */
+  .steps { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .step { border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: var(--card); }
+  .step .n { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; border: 1px solid var(--line); font: 13px var(--mono); color: var(--muted); }
+  .step h3 { margin: 16px 0 6px; font-size: 17px; font-weight: 600; }
+  .step p { color: var(--muted); font-size: 14px; }
+
+  /* terminal */
+  .term { margin-top: 48px; border: 1px solid var(--line); border-radius: 16px; background: #0a0a0a; overflow: hidden; box-shadow: 0 0 0 1px #000, 0 30px 80px -20px rgba(187,154,247,.18); }
+  .term-h { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .term-h i { width: 11px; height: 11px; border-radius: 99px; background: #2a2a2a; }
+  .term-h span { margin-left: auto; margin-right: auto; font: 12px var(--mono); color: var(--dim); transform: translateX(-28px); }
+  .term-b { padding: 20px; font: 14px/2 var(--mono); overflow-x: auto; white-space: nowrap; }
+  .term-b .p { color: var(--dim); }
+  .toast { display: inline-block; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 2px 12px; color: var(--muted); }
+
+  /* countries */
+  .countries { margin-top: 40px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .country { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); font-size: 14px; }
+  .country small { color: var(--dim); font: 12px var(--mono); }
+  .swatches { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+  .sw { width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); }
+
+  /* final cta */
+  .final { text-align: center; position: relative; overflow: hidden; }
+  .final::before { content: ''; position: absolute; left: 50%; bottom: -260px; width: 800px; height: 460px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(122,162,247,.22), transparent); pointer-events: none; }
+  .final > * { position: relative; }
+  .final .sub { margin: 0 auto 32px; }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0; color: var(--dim); font-size: 14px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a:hover { color: var(--fg); }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="logo.svg" alt="">redact-secrets</a>
+    <div class="links">
+      <a class="hide-sm" href="#playground">Playground</a>
+      <a class="hide-sm" href="#detects">What it masks</a>
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="btn btn-ghost btn-sm" href="https://github.com/webdiego/redact-secrets">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap">
+  <span class="pill"><b>v0.3.0</b> A mod for Claude Code</span>
+  <h1><span class="grad">Your secrets never<br>leave the prompt.</span></h1>
+  <p class="lead">redact-secrets masks emails, phone numbers, API keys, cards, IBANs and national IDs in your prompts before they are sent. Locally, with no network and no setup.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="#install">Install the mod</a>
+    <a class="btn btn-ghost" href="#playground">Try it live →</a>
+  </div>
+  <div class="cmd" id="install">
+    <span class="prompt">&gt;</span>
+    <code id="cmd">/plugin install redact-secrets --marketplace webdiego/redact-secrets</code>
+    <button class="copy" type="button" data-copy="cmd">Copy</button>
+  </div>
+</header>
+
+<section id="playground">
+  <div class="wrap">
+    <span class="eyebrow">Playground</span>
+    <h2>Type something you shouldn't.</h2>
+    <p class="sub">This runs the mod's own patterns in your browser. Nothing you type leaves this page.</p>
+    <div class="play">
+      <div class="pane">
+        <div class="pane-h"><span>You type</span></div>
+        <textarea id="in" spellcheck="false" aria-label="Prompt to mask">write to mario.rossi@gmail.com, tel +39 333 123 4567, my tax code is RSSMRA85T10A562S and the key is sk-ant-api03-Xk92mP0qLz7vB4nR8tYw</textarea>
+      </div>
+      <div class="pane">
+        <div class="pane-h"><span>The model reads</span><span class="count" id="count" aria-live="polite"></span></div>
+        <div class="out" id="out"></div>
+      </div>
+    </div>
+    <div class="examples">
+      <button class="ex" type="button">card 4111 1111 1111 1111</button>
+      <button class="ex" type="button">IBAN DE89 3704 0044 0532 0130 00</button>
+      <button class="ex" type="button">ssn 123-45-6789</button>
+      <button class="ex" type="button">josé@müller.de</button>
+      <button class="ex" type="button">token ghp_a1B2c3D4e5F6g7H8i9J0kLmN</button>
+      <button class="ex" type="button">3 cats, born 2024</button>
+    </div>
+  </div>
+</section>
+
+<section id="detects">
+  <div class="wrap">
+    <span class="eyebrow">What it masks</span>
+    <h2>Six kinds of data. One placeholder.</h2>
+    <p class="sub">Every match becomes <code>⟦kind:abc•••⟧</code>: the model still knows what was there, you still know which value it was.</p>
+    <div class="grid">
+      <div class="cell"><span class="k">01 · key</span><h3>API keys &amp; tokens</h3><p>OpenAI, Anthropic, GitHub, AWS, Google, Slack, JWTs and any long mixed token.</p><div class="sample">sk-ant-… → ⟦key:sk-•••⟧</div></div>
+      <div class="cell"><span class="k">02 · email</span><h3>Email addresses</h3><p>Any address, Unicode letters included.</p><div class="sample">josé@müller.de → ⟦email:jos•••⟧</div></div>
+      <div class="cell"><span class="k">03 · phone</span><h3>Phone numbers</h3><p>International formats and native numerals: Arabic, Persian, Devanagari.</p><div class="sample">+39 333 123 4567 → ⟦phone:+39•••⟧</div></div>
+      <div class="cell"><span class="k">04 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
+      <div class="cell"><span class="k">05 · iban</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦iban:DE8•••⟧</div></div>
+      <div class="cell"><span class="k">06 · id</span><h3>National IDs</h3><p>Nine countries, switchable from <code>/config</code>.</p><div class="sample">RSSMRA85T10A562S → ⟦id:RSS•••⟧</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <span class="eyebrow">How it works</span>
+    <h2>A safety net between Enter and the model.</h2>
+    <p class="sub">One hooks module, running inside Claude Code on the exact text you are about to send.</p>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><h3>You press Enter</h3><p><code>prompt.submit</code> fires before the prompt enters the session. Slash commands pass through untouched.</p></div>
+      <div class="step"><span class="n">2</span><h3>It masks locally</h3><p>Matches become placeholders. The engine, the model, the stored transcript and other plugins only see the masked text.</p></div>
+      <div class="step"><span class="n">3</span><h3>It fails closed</h3><p>If the check ever breaks, the prompt is dropped instead of being sent unmasked.</p></div>
+    </div>
+    <div class="term" aria-label="Example Claude Code session">
+      <div class="term-h"><i></i><i></i><i></i><span>claude — redact-secrets</span></div>
+      <div class="term-b">
+        <div><span class="p">&gt;</span> write to <span class="chip">🔒 mar•••</span>, tel <span class="chip">🔒 +39•••</span>, my tax code is <span class="chip">🔒 RSS•••</span></div>
+        <div class="toast">🔒 Sensitive data masked before sending: 3</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Configure</span>
+    <h2>Your countries. Your color.</h2>
+    <p class="sub">Pick the national ID formats to cover and the highlight color at install, or later from <code>/config</code>. The toast speaks 35 languages.</p>
+    <div class="countries">
+      <div class="country">🇮🇹 Italy <small>codice fiscale</small></div>
+      <div class="country">🇺🇸 United States <small>SSN</small></div>
+      <div class="country">🇬🇧 United Kingdom <small>NINO</small></div>
+      <div class="country">🇪🇸 Spain <small>DNI / NIE</small></div>
+      <div class="country">🇫🇷 France <small>NIR</small></div>
+      <div class="country">🇧🇷 Brazil <small>CPF</small></div>
+      <div class="country">🇮🇳 India <small>PAN</small></div>
+      <div class="country">🇲🇽 Mexico <small>CURP</small></div>
+      <div class="country">🇨🇳 China <small>resident ID</small></div>
+    </div>
+    <div class="swatches" aria-label="Highlight colors">
+      <span class="sw" style="background:#bb9af7" title="purple"></span><span class="sw" style="background:#7aa2f7" title="blue"></span><span class="sw" style="background:#7dcfff" title="cyan"></span><span class="sw" style="background:#9ece6a" title="green"></span><span class="sw" style="background:#e0af68" title="yellow"></span><span class="sw" style="background:#ff9e64" title="orange"></span><span class="sw" style="background:#f7768e" title="red"></span><span class="sw" style="background:#ff79c6" title="pink"></span>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Install it in one line.</h2>
+    <p class="sub">Free, open source, MIT licensed. Active immediately, no restart.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#install">Get the command</a>
+      <a class="btn btn-ghost" href="https://github.com/webdiego/redact-secrets#readme">Read the docs</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 webdiego · MIT License</span>
+    <a href="https://github.com/webdiego/redact-secrets">github.com/webdiego/redact-secrets</a>
+  </div>
+</footer>
+
+<script src="redact.js"></script>
+<script>
+  const input = document.getElementById('in')
+  const out = document.getElementById('out')
+  const count = document.getElementById('count')
+  const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+
+  const render = () => {
+    const masked = redact(input.value)
+    const n = (masked.match(/⟦/g) ?? []).length - (input.value.match(/⟦/g) ?? []).length
+    out.innerHTML = esc(masked).replace(/⟦(\w+):([^⟧]*)•••⟧/g, (_, kind, p) => `<span class="chip" title="${kind}">🔒 ${p}•••</span>`)
+    count.textContent = n > 0 ? `🔒 ${n} masked` : ''
+  }
+  input.addEventListener('input', render)
+  render()
+
+  document.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
+    input.value = b.textContent
+    render()
+    input.focus()
+  }))
+
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent)
+      b.textContent = 'Copied'
+    } catch { b.textContent = 'Select & copy' }
+    setTimeout(() => (b.textContent = 'Copy'), 1500)
+  }))
+</script>
+</body>
+</html>
