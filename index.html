@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>redact-secrets</title>
-<meta name="description" content="A Claude Code mod that masks emails, phones, API keys, passwords, cards, IBANs and national IDs in your prompts before they leave your machine.">
+<meta name="description" content="A Claude Code mod that masks emails, phones, API keys, passwords, cards, IBANs and national IDs in your prompts and in what Claude's tools read, before they leave your machine.">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,8 +93,9 @@
   .cell .sample { margin-top: 16px; font: 13px var(--mono); color: var(--dim); }
 
   /* how it works */
-  .steps { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .steps { margin-top: 48px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .steps { grid-template-columns: 1fr; } }
   .step { border: 1px solid var(--line); border-radius: 16px; padding: 28px; background: var(--card); }
   .step .n { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; border: 1px solid var(--line); font: 13px var(--mono); color: var(--muted); }
   .step h3 { margin: 16px 0 6px; font-size: 17px; font-weight: 600; }
@@ -145,9 +146,9 @@
 </nav>
 
 <header class="hero wrap">
-  <span class="pill"><b>v0.4.0</b> A mod for Claude Code</span>
+  <span class="pill"><b>v0.5.0</b> A mod for Claude Code</span>
   <h1><span class="grad">Your secrets never<br>leave the prompt.</span></h1>
-  <p class="lead">redact-secrets masks emails, phone numbers, API keys, passwords, cards, IBANs and national IDs in your prompts before they are sent. Locally, with no network and no setup.</p>
+  <p class="lead">redact-secrets masks emails, phone numbers, API keys, passwords, cards, IBANs and national IDs in your prompts, and in the files and command output Claude's tools read, before the model sees them. Locally, with no network and no setup.</p>
   <div class="cta">
     <a class="btn btn-primary" href="#install">Install the mod</a>
     <a class="btn btn-ghost" href="#playground">Try it live →</a>
@@ -183,6 +184,7 @@
       <button class="ex" type="button">PASSWORD=hunter2isgood</button>
       <button class="ex" type="button">postgres://admin:S3cretPass@db:5432/app</button>
       <button class="ex" type="button">3 cats, born 2024</button>
+      <button class="ex" type="button">commit 625f2dc1a2b3c4d5e6f708192a3b4c5d6e7f8091</button>
       <button class="ex" type="button">at 2026-10-23 12:30 from 192.168.1.20</button>
     </div>
   </div>
@@ -199,9 +201,9 @@
       <div class="cell"><span class="k">03 · email</span><h3>Email addresses</h3><p>Any address, Unicode letters included.</p><div class="sample">josé@müller.de → ⟦email:jos•••⟧</div></div>
       <div class="cell"><span class="k">04 · phone</span><h3>Phone numbers</h3><p>International formats and native numerals: Arabic, Persian, Devanagari.</p><div class="sample">+39 333 123 4567 → ⟦phone:+39•••⟧</div></div>
       <div class="cell"><span class="k">05 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
-      <div class="cell"><span class="k">06 · iban</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦iban:DE8•••⟧</div></div>
+      <div class="cell"><span class="k">06 · bank_account</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦bank_account:DE8•••⟧</div></div>
       <div class="cell"><span class="k">07 · id</span><h3>National IDs</h3><p>Nine countries, switchable from <code>/config</code>.</p><div class="sample">RSSMRA85T10A562S → ⟦id:RSS•••⟧</div></div>
-      <div class="cell"><span class="k">— · left alone</span><h3>Not secrets</h3><p>Dates, times, IP addresses, years, prices and ports. Pasted logs stay readable.</p><div class="sample">192.168.1.20 → 192.168.1.20</div></div>
+      <div class="cell"><span class="k">— · left alone</span><h3>Not secrets</h3><p>Dates, times, IP addresses, commit hashes, UUIDs, years, prices and ports. Logs stay readable.</p><div class="sample">192.168.1.20 → 192.168.1.20</div></div>
     </div>
   </div>
 </section>
@@ -210,17 +212,18 @@
   <div class="wrap">
     <span class="eyebrow">How it works</span>
     <h2>A safety net between Enter and the model.</h2>
-    <p class="sub">One hooks module, running inside Claude Code on the exact text you are about to send.</p>
+    <p class="sub">One hooks module, running inside Claude Code on the exact text you send and every tool result the model reads.</p>
     <div class="steps">
       <div class="step"><span class="n">1</span><h3>You press Enter</h3><p><code>prompt.submit</code> fires before the prompt enters the session. Slash commands pass through untouched.</p></div>
       <div class="step"><span class="n">2</span><h3>It masks locally</h3><p>Matches become placeholders. The engine, the model, the stored transcript and other plugins only see the masked text.</p></div>
-      <div class="step"><span class="n">3</span><h3>It fails closed</h3><p>If the check ever breaks, the prompt is dropped instead of being sent unmasked.</p></div>
+      <div class="step"><span class="n">3</span><h3>Tools are masked too</h3><p><code>tool.call</code> masks what Read, Bash, WebFetch and MCP tools return. An <code>Edit</code> or <code>Write</code> that would put a placeholder over a real value is refused.</p></div>
+      <div class="step"><span class="n">4</span><h3>It fails closed</h3><p>If the check ever breaks, the prompt is dropped and the tool output withheld, never passed on unmasked.</p></div>
     </div>
     <div class="term" aria-label="Example Claude Code session">
       <div class="term-h"><i></i><i></i><i></i><span>claude — redact-secrets</span></div>
       <div class="term-b">
         <div><span class="p">&gt;</span> write to <span class="chip">🔒 mar•••</span>, tel <span class="chip">🔒 +39•••</span>, my tax code is <span class="chip">🔒 RSS•••</span></div>
-        <div class="toast">🔒 Sensitive data masked before sending: 3</div>
+        <div class="toast">🔒 Sensitive data masked before sending: 📧 1 · 📞 1 · 🪪 1</div>
       </div>
     </div>
   </div>
@@ -271,13 +274,19 @@
   const input = document.getElementById('in')
   const out = document.getElementById('out')
   const count = document.getElementById('count')
+  const MASK = /⟦(\w+):([^⟧]*)•••⟧/g
+  // Same icons as the mod's toast.
+  const ICONS = { email: '📧', phone: '📞', key: '🔑', secret: '🔐', card: '💳', bank_account: '🏦', id: '🪪' }
   const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
 
   const render = () => {
     const masked = redact(input.value)
-    const n = (masked.match(/⟦/g) ?? []).length - (input.value.match(/⟦/g) ?? []).length
-    out.innerHTML = esc(masked).replace(/⟦(\w+):([^⟧]*)•••⟧/g, (_, kind, p) => `<span class="chip" title="${kind}">🔒 ${p}•••</span>`)
-    count.textContent = n > 0 ? `🔒 ${n} masked` : ''
+    const kinds = {}
+    for (const [, k] of masked.matchAll(MASK)) kinds[k] = (kinds[k] ?? 0) + 1
+    for (const [, k] of input.value.matchAll(MASK)) kinds[k] = (kinds[k] ?? 0) - 1
+    out.innerHTML = esc(masked).replace(MASK, (_, kind, p) => `<span class="chip" title="${kind}">🔒 ${p}•••</span>`)
+    const parts = Object.entries(kinds).filter(([, n]) => n > 0).map(([k, n]) => `${ICONS[k] ?? k} ${n}`).join(' · ')
+    count.textContent = parts ? `🔒 ${parts}` : ''
   }
   input.addEventListener('input', render)
   render()

@@ -1,4 +1,4 @@
-// Copied from redact-secrets hooks/register.tsx (NATIONAL_IDS, SECRETS, NOT_A_PHONE, PATTERNS, redact): keep in sync.
+// Copied from redact-secrets hooks/register.tsx (NATIONAL_IDS, SECRETS, NOT_A_PHONE, NOT_A_KEY, PATTERNS, redact): keep in sync.
 const NATIONAL_IDS = {
   IT: /\b[A-Z]{6}\d{2}[A-EHLMPR-T]\d{2}[A-Z]\d{3}[A-Z]\b/gi, // codice fiscale
   US: /\b\d{3}-\d{2}-\d{4}\b/g, // SSN
@@ -20,16 +20,19 @@ const SECRETS = [
   ['secret', /(?<=:\/\/[^\s:@\/]*:)[^\s@\/]+(?=@)/g],
   // The value of PASSWORD=…, "api_key": "…", client_secret: …; not env lookups like process.env.X or ${X}.
   // (?<!⟦): the `secret:` label of a placeholder is not an assignment.
-  ['secret', /(?<=(?<!⟦)(?:passw(?:or)?d|pwd|secret(?:[_-]?key)?|token|api[_-]?key|access[_-]?key|private[_-]?key)["']?\s*[:=]\s*["']?)(?![$%{(<]|[A-Za-z_]\w*[.([])[^\s"'`,;]{4,}/gi],
+  ['secret', /(?<=(?<!⟦)(?:passw(?:or)?d|pwd|secret(?:[_-]?key)?|token|api[_-]?key|access[_-]?key|private[_-]?key)["']?\s*[:=]\s*["']?)(?![$%{(<⟦]|[A-Za-z_]\w*[.([])[^\s"'`,;]{4,}/gi],
 ]
 
 // Dates, times and IPv4 addresses look like phone numbers but are not secret.
 const NOT_A_PHONE = /^(?:\d{4}-\d{2}-\d{2}|\d{1,2}([./-])\d{1,2}\1\d{4})(?: \d{1,2})?$|^\d{1,3}(?:\.\d{1,3}){3}$/
 
+// Git commit hashes, SHA-256 digests and UUIDs fill tool output and are not secret.
+const NOT_A_KEY = /^(?:[\da-f]{40}|[\da-f]{64}|[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})$/i
+
 // Order matters: IBANs before phones, so their digits are not taken as a number.
 const PATTERNS = [
   ['email', /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.\p{L}{2,}/gu],
-  ['iban', /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,3})?\b/g],
+  ['bank_account', /\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,3})?\b/g],
   ['card', /(?<!\p{Nd})(?:\p{Nd}[ -]?){13,19}(?!\p{Nd})/gu],
   ['phone', /(?:\+|(?<!\p{Nd})00)?\(?\p{Nd}[\p{Nd} ().\/-]{6,}\p{Nd}(?!\p{Nd})/gu],
 ]
@@ -38,8 +41,9 @@ const redact = (text, ids = Object.values(NATIONAL_IDS)) =>
   [...SECRETS, ...ids.map(re => ['id', re]), ...PATTERNS].reduce(
     (t, [kind, re]) =>
       t.replace(re, m =>
-        ((kind === 'card' || kind === 'phone' || kind === 'iban') && (m.match(/\p{Nd}/gu) ?? []).length < 8) ||
-        (kind === 'phone' && NOT_A_PHONE.test(m))
+        ((kind === 'card' || kind === 'phone' || kind === 'bank_account') && (m.match(/\p{Nd}/gu) ?? []).length < 8) ||
+        (kind === 'phone' && NOT_A_PHONE.test(m)) ||
+        (kind === 'key' && NOT_A_KEY.test(m))
           ? m
           : `⟦${kind}:${m.slice(0, 3)}•••⟧`,
       ),
