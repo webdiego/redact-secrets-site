@@ -146,7 +146,7 @@
 </nav>
 
 <header class="hero wrap">
-  <span class="pill"><b>v0.5.0</b> A mod for Claude Code</span>
+  <span class="pill"><b>v0.6.0</b> A mod for Claude Code</span>
   <h1><span class="grad">Your secrets never<br>leave the prompt.</span></h1>
   <p class="lead">redact-secrets masks emails, phone numbers, API keys, passwords, cards, IBANs and national IDs in your prompts, and in the files and command output Claude's tools read, before the model sees them. Locally, with no network and no setup.</p>
   <div class="cta">
@@ -186,6 +186,7 @@
       <button class="ex" type="button">3 cats, born 2024</button>
       <button class="ex" type="button">commit 625f2dc1a2b3c4d5e6f708192a3b4c5d6e7f8091</button>
       <button class="ex" type="button">at 2026-10-23 12:30 from 192.168.1.20</button>
+      <button class="ex" type="button">chrome 130.0.6723.91</button>
     </div>
   </div>
 </section>
@@ -196,14 +197,14 @@
     <h2>Seven kinds of data. One placeholder.</h2>
     <p class="sub">Every match becomes <code>⟦kind:abc•••⟧</code>: the model still knows what was there, you still know which value it was.</p>
     <div class="grid">
-      <div class="cell"><span class="k">01 · key</span><h3>API keys &amp; tokens</h3><p>OpenAI, Anthropic, Stripe, GitHub, AWS, Google, Slack, JWTs, Bearer tokens, private key blocks and any long mixed token.</p><div class="sample">sk-ant-… → ⟦key:sk-•••⟧</div></div>
-      <div class="cell"><span class="k">02 · secret</span><h3>Passwords &amp; secrets</h3><p>Values of <code>PASSWORD=</code>, <code>api_key:</code>, <code>*_TOKEN</code> and the password in <code>user:pass@host</code> URLs. Env lookups stay.</p><div class="sample">PASSWORD=hunter2 → PASSWORD=⟦secret:hun•••⟧</div></div>
+      <div class="cell"><span class="k">01 · key</span><h3>API keys &amp; tokens</h3><p>OpenAI, Anthropic, Stripe, GitHub, GitLab, SendGrid, AWS, Google, Slack, JWTs, Bearer and Basic credentials, private key blocks and any long mixed token.</p><div class="sample">sk-ant-… → ⟦key:sk-•••⟧</div></div>
+      <div class="cell"><span class="k">02 · secret</span><h3>Passwords &amp; secrets</h3><p>Values of <code>PASSWORD=</code>, <code>DB_PASS=</code>, <code>api_key:</code>, <code>*_TOKEN</code> and the password in <code>user:pass@host</code> URLs. Env lookups stay.</p><div class="sample">PASSWORD=hunter2 → PASSWORD=⟦secret:hun•••⟧</div></div>
       <div class="cell"><span class="k">03 · email</span><h3>Email addresses</h3><p>Any address, Unicode letters included.</p><div class="sample">josé@müller.de → ⟦email:jos•••⟧</div></div>
       <div class="cell"><span class="k">04 · phone</span><h3>Phone numbers</h3><p>International formats and native numerals: Arabic, Persian, Devanagari.</p><div class="sample">+39 333 123 4567 → ⟦phone:+39•••⟧</div></div>
-      <div class="cell"><span class="k">05 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
+      <div class="cell"><span class="k">05 · card</span><h3>Card numbers</h3><p>13 to 19 digits, with spaces or dashes, passing the Luhn check.</p><div class="sample">4111 1111 … → ⟦card:411•••⟧</div></div>
       <div class="cell"><span class="k">06 · bank_account</span><h3>IBANs</h3><p>Every country, spaces optional.</p><div class="sample">DE89 3704 … → ⟦bank_account:DE8•••⟧</div></div>
       <div class="cell"><span class="k">07 · id</span><h3>National IDs</h3><p>Nine countries, switchable from <code>/config</code>.</p><div class="sample">RSSMRA85T10A562S → ⟦id:RSS•••⟧</div></div>
-      <div class="cell"><span class="k">— · left alone</span><h3>Not secrets</h3><p>Dates, times, IP addresses, commit hashes, UUIDs, years, prices and ports. Logs stay readable.</p><div class="sample">192.168.1.20 → 192.168.1.20</div></div>
+      <div class="cell"><span class="k">— · left alone</span><h3>Not secrets</h3><p>Dates, times, IP addresses, build numbers, commit hashes, UUIDs, years, prices and ports. Logs stay readable.</p><div class="sample">192.168.1.20 → 192.168.1.20</div></div>
     </div>
   </div>
 </section>
@@ -216,7 +217,7 @@
     <div class="steps">
       <div class="step"><span class="n">1</span><h3>You press Enter</h3><p><code>prompt.submit</code> fires before the prompt enters the session. Slash commands pass through untouched.</p></div>
       <div class="step"><span class="n">2</span><h3>It masks locally</h3><p>Matches become placeholders. The engine, the model, the stored transcript and other plugins only see the masked text.</p></div>
-      <div class="step"><span class="n">3</span><h3>Tools are masked too</h3><p><code>tool.call</code> masks what Read, Bash, WebFetch and MCP tools return. An <code>Edit</code> or <code>Write</code> that would put a placeholder over a real value is refused.</p></div>
+      <div class="step"><span class="n">3</span><h3>Tools are masked too</h3><p><code>tool.call</code> masks what Read, Bash, WebFetch and MCP tools return. An <code>Edit</code>, <code>Write</code> or <code>Bash</code> command that would put a placeholder over a real value is refused.</p></div>
       <div class="step"><span class="n">4</span><h3>It fails closed</h3><p>If the check ever breaks, the prompt is dropped and the tool output withheld, never passed on unmasked.</p></div>
     </div>
     <div class="term" aria-label="Example Claude Code session">
